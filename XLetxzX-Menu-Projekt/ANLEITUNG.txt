@@ -1,0 +1,8 @@
+Dieses Projekt ist klein (unter 1 MB), die 80 Mods liegen in der Basis.jar.
+1. github.com -> New repository (privat) -> "uploading an existing file"
+2. Alle Dateien/Ordner hineinziehen (auch den versteckten Ordner .github und src) -> Commit
+3. Oben "Actions" -> Lauf "Build XLetxzX Visuals" abwarten (3-5 Min)
+4. Lauf öffnen -> unten bei Artifacts "XLetxzX-Menu" herunterladen, entpacken -> XLetxzX-Menu-1.21.11-1.0.0.jar
+5. Diese Jar im Chat an Claude schicken, dann wird sie mit den 80 Mods zu EINER Datei verbunden.
+   (Oder beide Dateien, Basis.jar + Menu-Jar, direkt in den mods-Ordner legen.)
+Bei rotem Lauf: Fehlermeldung kopieren und im Chat einfügen.
