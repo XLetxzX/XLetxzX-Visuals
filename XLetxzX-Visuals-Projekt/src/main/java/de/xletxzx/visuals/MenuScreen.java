@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.option.VideoOptionsScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.SimpleOption;
@@ -19,7 +20,7 @@ public class MenuScreen extends Screen {
     private static final String[] TABS = {"HOME", "FPS", "VISUALS", "PVP", "EXTRAS"};
     private static final int HOME = 0, FPS = 1, VISUALS = 2, PVP = 3, EXTRAS = 4, DESIGN = 5, CREDITS = 6;
 
-    // {Anzeigename, Mod-ID} - Klick öffnet die Einstellungen der Mod
+    // {display name, mod id} - click opens the mod settings
     private static final String[][] FPS_MODS = {
         {"Sodium", "sodium"}, {"Sodium Extra", "sodium-extra"}, {"Entity Culling", "entityculling"},
         {"More Culling", "moreculling"}, {"Dynamic FPS", "dynamic_fps"}, {"ImmediatelyFast", "immediatelyfast"},
@@ -50,6 +51,12 @@ public class MenuScreen extends Screen {
         {"Fast IP Ping", "fastipping"}
     };
 
+    private static final String[] THEME_EN = {"Purple", "Blue", "Red", "Green", "Orange", "Pink", "White"};
+    private static final String[] BG_EN = {"Dark", "Gradient", "Image"};
+    // Mods whose settings live inside the Sodium video settings screen
+    private static final java.util.Set<String> SODIUM_PAGES = java.util.Set.of(
+        "sodium", "sodium-extra", "moreculling", "bobby", "notexturerotations");
+
     private final Screen parent;
     private int page = HOME;
     private String note = "";
@@ -75,18 +82,30 @@ public class MenuScreen extends Screen {
         noteUntil = System.currentTimeMillis() + 3000;
     }
 
-    /** Öffnet die Einstellungen einer Mod über Mod Menu (per Reflection, damit nichts kaputtgeht). */
-    private void openConfig(String modId) {
-        try {
-            Class<?> c = Class.forName("com.terraformersmc.modmenu.ModMenu");
-            Object s = c.getMethod("getConfigScreen", String.class, Screen.class).invoke(null, modId, this);
-            if (s instanceof Screen scr) {
-                MinecraftClient.getInstance().setScreen(scr);
-                return;
+    /** Opens a mod's settings through Mod Menu (reflection) or the Sodium video settings. */
+    private void openConfig(String name, String modId) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (!modId.equals("sodium") && !modId.equals("sodium-extra")) {
+            try {
+                Class<?> c = Class.forName("com.terraformersmc.modmenu.ModMenu");
+                Object s = c.getMethod("getConfigScreen", String.class, Screen.class).invoke(null, modId, this);
+                if (s instanceof Screen scr) {
+                    mc.setScreen(scr);
+                    return;
+                }
+            } catch (Throwable t) {
+                System.err.println("[XLetxzX] config screen error for " + modId + ": " + t);
             }
-        } catch (Throwable ignored) {
         }
-        showNote("Diese Mod hat keine eigenen Einstellungen.");
+        if (SODIUM_PAGES.contains(modId)) {
+            try {
+                mc.setScreen(new VideoOptionsScreen(this, mc, mc.options));
+                return;
+            } catch (Throwable t) {
+                System.err.println("[XLetxzX] video settings error: " + t);
+            }
+        }
+        showNote(name + " has no in-game settings screen (config file only).");
     }
 
     private void openModList() {
@@ -99,7 +118,7 @@ public class MenuScreen extends Screen {
             }
         } catch (Throwable ignored) {
         }
-        showNote("Mod Menu konnte nicht geöffnet werden.");
+        showNote("Could not open Mod Menu.");
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -114,21 +133,21 @@ public class MenuScreen extends Screen {
         }
     }
 
-    /** Stellt die wichtigsten Vanilla-Optionen auf maximale FPS. */
+    /** Sets the most important vanilla options for maximum FPS. */
     private void applyFpsPreset() {
         try {
             GameOptions o = MinecraftClient.getInstance().options;
             o.getViewDistance().setValue(8);
             o.getSimulationDistance().setValue(6);
-            setLastEnum(o.getParticles()); // Partikel: letzte Stufe = minimal
+            setLastEnum(o.getParticles()); // particles: last level = minimal
             o.getEntityDistanceScaling().setValue(0.5);
             o.getMaxFps().setValue(260);
             o.getEnableVsync().setValue(false);
             o.getBiomeBlendRadius().setValue(1);
             o.write();
-            showNote("FPS-Boost angewendet (Renderdistanz 8, Partikel minimal, V-Sync aus).");
+            showNote("FPS boost applied (render distance 8, minimal particles, VSync off).");
         } catch (Throwable t) {
-            showNote("FPS-Boost konnte nicht angewendet werden.");
+            showNote("Could not apply FPS boost.");
         }
     }
 
@@ -137,7 +156,7 @@ public class MenuScreen extends Screen {
         Config c = Config.get();
         int areaW = width - 40 - 176;
 
-        // Tabs oben
+        // tabs
         int tabW = 64;
         int tx = Math.max(150, (width - 176 - TABS.length * (tabW + 4)) / 2 + 60);
         for (int i = 0; i < TABS.length; i++) {
@@ -152,35 +171,35 @@ public class MenuScreen extends Screen {
             int regionEnd = width - 176 - 10;
             int bx = (regionStart + regionEnd) / 2 - 95;
             int by = height / 2 - 10;
-            addDrawableChild(ButtonWidget.builder(Text.literal("Weiter"), b -> close())
+            addDrawableChild(ButtonWidget.builder(Text.literal("Continue"), b -> close())
                     .dimensions(bx, by, 190, 22).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Meine Mods bearbeiten"), b -> openModList())
+            addDrawableChild(ButtonWidget.builder(Text.literal("Edit my mods"), b -> openModList())
                     .dimensions(bx, by + 28, 190, 22).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Einstellungen (Design)"), b -> { page = DESIGN; clearAndInit(); })
+            addDrawableChild(ButtonWidget.builder(Text.literal("Settings"), b -> { page = DESIGN; clearAndInit(); })
                     .dimensions(bx, by + 56, 190, 22).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Credits"), b -> { page = CREDITS; clearAndInit(); })
                     .dimensions(bx, by + 84, 190, 22).build());
         } else if (page == DESIGN) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("Farbe: " + Config.THEME_NAMES[c.theme]), b -> {
+            addDrawableChild(ButtonWidget.builder(Text.literal("Color: " + THEME_EN[c.theme]), b -> {
                 c.theme = (c.theme + 1) % Config.THEME_NAMES.length; Config.save(); clearAndInit();
             }).dimensions(20, 70, 200, 20).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Hintergrund: " + Config.BG_NAMES[c.background]), b -> {
+            addDrawableChild(ButtonWidget.builder(Text.literal("Background: " + BG_EN[c.background]), b -> {
                 c.background = (c.background + 1) % Config.BG_NAMES.length; Config.save(); clearAndInit();
             }).dimensions(20, 96, 200, 20).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Discord-Status: " + (c.discord ? "AN" : "AUS")), b -> {
+            addDrawableChild(ButtonWidget.builder(Text.literal("Discord status: " + (c.discord ? "ON" : "OFF")), b -> {
                 c.discord = !c.discord;
                 if (c.discord) DiscordRpc.start(); else DiscordRpc.stop();
                 Config.save(); clearAndInit();
             }).dimensions(20, 122, 200, 20).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Zurück"), b -> { page = HOME; clearAndInit(); })
+            addDrawableChild(ButtonWidget.builder(Text.literal("Back"), b -> { page = HOME; clearAndInit(); })
                     .dimensions(20, 160, 200, 20).build());
         } else if (page == CREDITS) {
-            addDrawableChild(ButtonWidget.builder(Text.literal("Zurück"), b -> { page = HOME; clearAndInit(); })
+            addDrawableChild(ButtonWidget.builder(Text.literal("Back"), b -> { page = HOME; clearAndInit(); })
                     .dimensions(20, height - 40, 120, 20).build());
         } else {
             int startY = 66;
             if (page == FPS) {
-                addDrawableChild(ButtonWidget.builder(Text.literal("FPS-Boost anwenden (Vanilla-Optionen)"), b -> applyFpsPreset())
+                addDrawableChild(ButtonWidget.builder(Text.literal("Apply FPS boost (vanilla options)"), b -> applyFpsPreset())
                         .dimensions(20, 40, areaW, 20).build());
                 startY = 90;
             }
@@ -189,20 +208,21 @@ public class MenuScreen extends Screen {
             int bw = (areaW - gap * (cols - 1)) / cols;
             for (int i = 0; i < list.length; i++) {
                 final String id = list[i][1];
+                final String name = list[i][0];
                 int x = 20 + (i % cols) * (bw + gap);
                 int y = startY + (i / cols) * 24;
-                addDrawableChild(ButtonWidget.builder(Text.literal(list[i][0]), b -> openConfig(id))
+                addDrawableChild(ButtonWidget.builder(Text.literal(list[i][0]), b -> openConfig(name, id))
                         .dimensions(x, y, bw, 20).build());
             }
         }
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Schließen"), b -> close())
+        addDrawableChild(ButtonWidget.builder(Text.literal("Close"), b -> close())
                 .dimensions(width - 176 - 100, height - 28, 90, 18).build());
     }
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // eigener Hintergrund wird in render() gezeichnet
+        // custom background is drawn in render()
     }
 
     private void drawCentered(DrawContext ctx, String s, int cx, int y, int color) {
@@ -215,7 +235,7 @@ public class MenuScreen extends Screen {
         int accent = c.accent();
         long t = System.currentTimeMillis();
 
-        // Hintergrund
+        // background
         switch (c.background) {
             case 0 -> ctx.fill(0, 0, width, height, 0xFF101018);
             case 1 -> ctx.fillGradient(0, 0, width, height, (accent & 0x00FFFFFF) | 0xFF000000, 0xFF06060A);
@@ -227,17 +247,17 @@ public class MenuScreen extends Screen {
                 ctx.fill(0, 0, width, height, 0xC0000000);
             }
         }
-        // abgedunkelter Verlauf für Lesbarkeit
+        // darken for readability
         ctx.fillGradient(0, 0, width, height, 0x40000000, 0xA0000000);
 
-        // Schnee
+        // snow
         for (int i = 0; i < 70; i++) {
             int x = (int) ((((i * 61) % 100) / 100f) * width + Math.sin(t / 900.0 + i) * 6);
             int y = (int) (((t / (20 + (i % 5) * 8)) + i * 53L) % Math.max(1, height));
             ctx.fill(x, y, x + 2, y + 2, 0xAAFFFFFF);
         }
 
-        // Kopfzeile
+        // header
         ctx.fill(0, 0, width, 28, 0xCC0B0B12);
         ctx.fill(0, 28, width, 29, accent);
         ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, 6, 4, 0f, 0f, 20, 20, 256, 256, 256, 256);
@@ -260,20 +280,20 @@ public class MenuScreen extends Screen {
             LocalDateTime xmas = LocalDateTime.of(now.getYear(), 12, 25, 0, 0);
             if (now.isAfter(xmas)) xmas = xmas.plusYears(1);
             Duration d = Duration.between(now, xmas);
-            drawCentered(ctx, "Weihnachten in " + d.toDays() + "d " + d.toHoursPart() + "h " + d.toMinutesPart() + "m",
+            drawCentered(ctx, "Christmas in " + d.toDays() + "d " + d.toHoursPart() + "h " + d.toMinutesPart() + "m",
                     cx, height / 2 - 32, 0xFFFFD27A);
-            drawCentered(ctx, "Menü öffnen mit Rechts-Shift", cx, height / 2 + 108, 0xFF777788);
+            drawCentered(ctx, "Open this menu with Right Shift", cx, height / 2 + 108, 0xFF777788);
         } else if (page == DESIGN) {
-            ctx.drawText(textRenderer, Text.literal("Design"), 20, 44, accent, true);
+            ctx.drawText(textRenderer, Text.literal("Settings"), 20, 44, accent, true);
         } else if (page == CREDITS) {
             ctx.drawText(textRenderer, Text.literal("Credits"), 20, 44, accent, true);
             String[] lines = {
-                "XLetxzX Visuals - gemacht von XLetxzX",
+                "XLetxzX Visuals - made by XLetxzX",
                 "",
-                "Enthaltene Mods gehören ihren jeweiligen Entwicklern:",
+                "Included mods belong to their respective developers:",
                 "Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling,",
-                "Mod Menu, Cloth Config, Simple Voice Chat, Litematica und viele mehr.",
-                "Danke an alle, die diese Mods bauen."
+                "Mod Menu, Cloth Config, Simple Voice Chat, Litematica and many more.",
+                "Thanks to everyone who builds these mods."
             };
             for (int i = 0; i < lines.length; i++) {
                 ctx.drawText(textRenderer, Text.literal(lines[i]), 20, 66 + i * 12, 0xFFCCCCCC, false);
@@ -281,12 +301,12 @@ public class MenuScreen extends Screen {
         } else {
             ctx.drawText(textRenderer, Text.literal(TABS[page]), 20, 44, accent, true);
             if (page != FPS) {
-                ctx.drawText(textRenderer, Text.literal("Klick auf eine Mod öffnet ihre Einstellungen"),
+                ctx.drawText(textRenderer, Text.literal("Click a mod to open its settings"),
                         90, 44, 0xFF8888AA, false);
             }
         }
 
-        // aktiven Tab markieren
+        // mark active tab
         if (page <= EXTRAS) {
             int tabW = 64;
             int tx = Math.max(150, (width - 176 - TABS.length * (tabW + 4)) / 2 + 60);
@@ -295,17 +315,17 @@ public class MenuScreen extends Screen {
 
         super.render(ctx, mouseX, mouseY, delta);
 
-        // Changelog oben rechts
+        // changelog top right
         String[] log = {
             "Changelog",
             "v1.1",
-            "+ Neues Design (Tabs)",
-            "+ Mods im Menü einstellen",
-            "+ FPS-Boost-Button",
-            "+ Weihnachts-Countdown",
+            "+ New tabbed design",
+            "+ Edit mods in the menu",
+            "+ FPS boost button",
+            "+ Christmas countdown",
             "v1.0",
-            "+ Farben & Hintergründe",
-            "+ Discord-Status",
+            "+ Colors & backgrounds",
+            "+ Discord status",
         };
         int bx = width - 168, by = 36, bw = 160;
         ctx.fill(bx, by, bx + bw, by + 12 + log.length * 12, 0xAA000000);
@@ -317,12 +337,12 @@ public class MenuScreen extends Screen {
             ctx.drawText(textRenderer, Text.literal(log[i]), bx + 6, by + 8 + i * 12, col, head);
         }
 
-        // Hinweis
+        // note
         if (System.currentTimeMillis() < noteUntil) {
             drawCentered(ctx, note, (width - 176) / 2, height - 24, 0xFFFFD27A);
         }
 
-        // Fußzeile
+        // footer
         ctx.drawText(textRenderer, Text.literal("MADE BY XLETXZX"), 20, height - 14, 0xFF666677, false);
     }
 
