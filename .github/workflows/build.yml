@@ -14,16 +14,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.2.0
-      - name: Projektordner finden
+      - name: Projekt ordnen
         run: |
           P=$(find . -name gradle.properties -not -path './.git/*' | head -1)
-          if [ -z "$P" ]; then
-            echo "gradle.properties nicht gefunden. Dateien im Repository:"
-            find . -not -path './.git/*' | head -60
-            exit 1
-          fi
+          if [ -z "$P" ]; then echo "gradle.properties nicht gefunden"; find . -not -path './.git/*' | head -60; exit 1; fi
           D=$(dirname "$P")
+          cd "$D"
+          mkdir -p src/main/java/de/xletxzx/visuals src/main/resources/assets/xletxzx/textures/gui src/main/resources/assets/xletxzx/lang
+          for f in *.java; do [ -f "$f" ] && mv "$f" src/main/java/de/xletxzx/visuals/; done
+          [ -f fabric.mod.json ] && mv fabric.mod.json src/main/resources/
+          [ -f icon.png ] && mv icon.png src/main/resources/assets/xletxzx/
+          [ -f logo.png ] && mv logo.png src/main/resources/assets/xletxzx/textures/gui/
+          for f in en_us.json de_de.json; do [ -f "$f" ] && mv "$f" src/main/resources/assets/xletxzx/lang/; done
           echo "Projektordner: $D"
+          find src -type f
           echo "DIR=$D" >> $GITHUB_ENV
       - name: Neueste Yarn-Version eintragen
         working-directory: ${{ env.DIR }}
