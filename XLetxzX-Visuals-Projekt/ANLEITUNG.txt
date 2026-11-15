@@ -1,4 +1,0 @@
-1. github.com -> Plus -> New repository -> Name: XLetxzX-Visuals -> Private -> Create
-2. "uploading an existing file" -> ALLE Dateien aus dem entpackten Ordner hineinziehen -> Commit changes
-3. Falls der Ordner .github fehlt: Add file -> Create new file -> Name: .github/workflows/build.yml -> Inhalt aus build.yml einfügen -> Commit
-4. Actions -> obersten Lauf abwarten -> unten Artifacts: XLetxzX-Menu herunterladen -> Jar entpacken -> Jar an Claude schicken
