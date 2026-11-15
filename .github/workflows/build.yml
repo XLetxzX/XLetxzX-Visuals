@@ -16,7 +16,13 @@ jobs:
           gradle-version: 9.2.0
       - name: Projektordner finden
         run: |
-          D=$(dirname "$(find . -name build.gradle -not -path './.git/*' | head -1)")
+          P=$(find . -name gradle.properties -not -path './.git/*' | head -1)
+          if [ -z "$P" ]; then
+            echo "gradle.properties nicht gefunden. Dateien im Repository:"
+            find . -not -path './.git/*' | head -60
+            exit 1
+          fi
+          D=$(dirname "$P")
           echo "Projektordner: $D"
           echo "DIR=$D" >> $GITHUB_ENV
       - name: Neueste Yarn-Version eintragen
